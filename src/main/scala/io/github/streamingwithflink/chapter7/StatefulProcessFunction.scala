@@ -1,13 +1,11 @@
 package io.github.streamingwithflink.chapter7
 
 import java.time.Duration
-
-import io.github.streamingwithflink.util.{SensorReading, SensorSource, SensorTimeAssigner}
+import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.scala.{DataStream, KeyedStream, StreamExecutionEnvironment}
 import org.apache.flink.util.Collector
@@ -15,7 +13,7 @@ import org.apache.flink.util.Collector
 object StatefulProcessFunction {
 
   /** main() defines and executes the DataStream program */
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     
     // set up the streaming execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -23,8 +21,6 @@ object StatefulProcessFunction {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -41,7 +37,6 @@ object StatefulProcessFunction {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     val keyedSensorData: KeyedStream[SensorReading, String] = sensorData.keyBy(_.id)
 

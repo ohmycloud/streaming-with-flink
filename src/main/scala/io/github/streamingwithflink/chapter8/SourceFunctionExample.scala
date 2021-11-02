@@ -16,6 +16,9 @@ object SourceFunctionExample {
     val numbers: DataStream[Long] = env.addSource(new CountSource)
     numbers.print()
 
+//    val numbersWithReplayable: DataStream[Long] = env.addSource(new ReplayableCountSource)
+//    numbersWithReplayable.print()
+
     env.execute()
   }
 

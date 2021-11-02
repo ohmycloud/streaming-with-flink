@@ -1,11 +1,9 @@
 package io.github.streamingwithflink.chapter6
 
 import java.time.Duration
-
-import io.github.streamingwithflink.util.{SensorReading, SensorSource, SensorTimeAssigner}
+import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
 import org.apache.flink.util.Collector
@@ -20,8 +18,6 @@ object SideOutputs {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -37,7 +33,7 @@ object SideOutputs {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
+
 
     val monitoredReadings: DataStream[SensorReading] = readings
       // monitor stream for readings with freezing temperatures

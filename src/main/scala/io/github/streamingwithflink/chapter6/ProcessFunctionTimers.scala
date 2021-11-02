@@ -4,20 +4,16 @@ import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.util.Collector
 
 object ProcessFunctionTimers {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     // set up the streaming execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     // ingest sensor stream
     val readings: DataStream[SensorReading] = env

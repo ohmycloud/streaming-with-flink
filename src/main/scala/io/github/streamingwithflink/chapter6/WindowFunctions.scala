@@ -1,13 +1,13 @@
 package io.github.streamingwithflink.chapter6
 
 import java.time.Duration
-import io.github.streamingwithflink.util.{SensorReading, SensorSource, SensorTimeAssigner}
+import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.functions.{AggregateFunction, ReduceFunction}
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
@@ -24,8 +24,6 @@ object WindowFunctions {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -41,36 +39,35 @@ object WindowFunctions {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     val minTempPerWindow: DataStream[(String, Double)] = sensorData
       .map(r => (r.id, r.temperature))
       .keyBy(_._1)
-      .timeWindow(Time.seconds(15))
+      .window(TumblingEventTimeWindows.of(Time.seconds(15)))
       .reduce((r1, r2) => (r1._1, r1._2.min(r2._2)))
 
     val minTempPerWindow2: DataStream[(String, Double)] = sensorData
       .map(r => (r.id, r.temperature))
       .keyBy(_._1)
-      .timeWindow(Time.seconds(15))
+      .window(TumblingEventTimeWindows.of(Time.seconds(15)))
       .reduce(new MinTempFunction)
 
     val avgTempPerWindow: DataStream[(String, Double)] = sensorData
       .map(r => (r.id, r.temperature))
       .keyBy(_._1)
-      .timeWindow(Time.seconds(15))
+      .window(TumblingEventTimeWindows.of(Time.seconds(15)))
       .aggregate(new AvgTempFunction)
 
     // output the lowest and highest temperature reading every 5 seconds
     val minMaxTempPerWindow: DataStream[MinMaxTemp] = sensorData
       .keyBy(_.id)
-      .timeWindow(Time.seconds(5))
+      .window(TumblingEventTimeWindows.of(Time.seconds(5)))
       .process(new HighAndLowTempProcessFunction)
 
     val minMaxTempPerWindow2: DataStream[MinMaxTemp] = sensorData
       .map(r => (r.id, r.temperature, r.temperature))
       .keyBy(_._1)
-      .timeWindow(Time.seconds(5))
+      .window(TumblingEventTimeWindows.of(Time.seconds(5)))
       .reduce(
         // incrementally compute min and max temperature
         (r1: (String, Double, Double), r2: (String, Double, Double)) => {

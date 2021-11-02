@@ -28,7 +28,6 @@ import io.github.streamingwithflink.util.{ResettableSensorSource, SensorReading}
 import org.apache.commons.lang3.StringUtils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -65,8 +64,6 @@ object WriteAheadSinkExample {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -83,7 +80,6 @@ object WriteAheadSinkExample {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     // compute average temperature of all sensors every second
     val avgTemp: DataStream[(String, Double)] = sensorData
@@ -92,7 +88,9 @@ object WriteAheadSinkExample {
           val avgTemp = vals.map(_.temperature).sum / vals.count(_ => true)
           // format window timestamp as ISO timestamp string
           val epochSeconds = w.getEnd / 1000
-          val tString = LocalDateTime.ofEpochSecond(epochSeconds, 0, ZoneOffset.UTC)
+
+          // 东八区
+          val tString = LocalDateTime.ofEpochSecond(epochSeconds, 0, ZoneOffset.ofHours(8))
             .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
           // emit record
           out.collect((tString, avgTemp))

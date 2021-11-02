@@ -7,30 +7,29 @@ import io.github.streamingwithflink.chapter8.util.{DerbyReader, DerbySetup}
 import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction.Context
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
 /**
-  * Example program that emits sensor readings with UPSERT writes to an embedded in-memory
-  * Apache Derby database.
+  * 样例程序: 使用 UPSERT 写发射传感器读数到嵌入的内存式 Apache Derby 数据库中
   *
-  * A separate thread queries the database every 10 seconds and prints the result.
+  * 一个单独的线程每隔 10 秒查询一次数据库, 然后打印结果
   */
 object IdempotentSinkFunctionExample {
 
   def main(args: Array[String]): Unit = {
 
-    // setup the embedded Derby database
+    // 设置嵌入式 Derby 数据库
     DerbySetup.setupDerby(
       """
         |CREATE TABLE Temperatures (
         |  sensor VARCHAR(16) PRIMARY KEY,
         |  temp DOUBLE)
       """.stripMargin)
-    // start a thread that prints the data written to Derby every 10 seconds.
+
+    // 启动一个线程每个 10 秒钟打印一次写入到 Derby 数据库的数据
     new Thread(
         new DerbyReader("SELECT sensor, temp FROM Temperatures ORDER BY sensor", 10000L))
       .start()
@@ -41,8 +40,6 @@ object IdempotentSinkFunctionExample {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -59,13 +56,13 @@ object IdempotentSinkFunctionExample {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
+
 
     val celsiusReadings: DataStream[SensorReading] = sensorData
-      // convert Fahrenheit to Celsius using an inlined map function
+      // 使用一个内联的 map 函数把华氏温度转换为摄氏温度
       .map( r => SensorReading(r.id, r.timestamp, (r.temperature - 32) * (5.0 / 9.0)) )
 
-    // write the converted sensor readings to Derby.
+    // 把转换后的传感器读数写入到 Derby 数据库
     celsiusReadings.addSink(new DerbyUpsertSink)
 
     env.execute()
@@ -85,27 +82,34 @@ class DerbyUpsertSink extends RichSinkFunction[SensorReading] {
   var updateStmt: PreparedStatement = _
 
   override def open(parameters: Configuration): Unit = {
-    // connect to embedded in-memory Derby
+    // 连接到嵌入式内存数据库 Derby
     val props = new Properties()
     conn = DriverManager.getConnection("jdbc:derby:memory:flinkExample", props)
-    // prepare insert and update statements
+    // 更新插入和更新语句
     insertStmt = conn.prepareStatement(
       "INSERT INTO Temperatures (sensor, temp) VALUES (?, ?)")
     updateStmt = conn.prepareStatement(
       "UPDATE Temperatures SET temp = ? WHERE sensor = ?")
   }
 
-  override def invoke(r: SensorReading, context: Context[_]): Unit = {
-    // set parameters for update statement and execute it
+  /**
+   *
+   * @param r SensorReading
+   * @param context Context
+   */
+  override def invoke(r: SensorReading, context: Context): Unit = {
+    // 为更新语句设置参数, 然后执行更新语句
     updateStmt.setDouble(1, r.temperature)
     updateStmt.setString(2, r.id)
     updateStmt.execute()
-    // execute insert statement if update statement did not update any row
+
+    // 如果更新语句没有更新任何行, 则执行插入语句
     if (updateStmt.getUpdateCount == 0) {
-      // set parameters for insert statement
+      // 为插入语句设置参数
       insertStmt.setString(1, r.id)
       insertStmt.setDouble(2, r.temperature)
-      // execute insert statement
+
+      // 执行插入语句
       insertStmt.execute()
     }
   }

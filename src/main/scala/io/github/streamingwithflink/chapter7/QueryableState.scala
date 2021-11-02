@@ -2,22 +2,21 @@ package io.github.streamingwithflink.chapter7
 
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
-
-import io.github.streamingwithflink.util.{SensorReading, SensorSource, SensorTimeAssigner}
+import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.queryablestate.client.QueryableStateClient
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 
 object TrackMaximumTemperature {
 
   /** main() defines and executes the DataStream program */
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     // set up the streaming execution environment
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI()
@@ -25,8 +24,6 @@ object TrackMaximumTemperature {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -43,14 +40,13 @@ object TrackMaximumTemperature {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     val tenSecsMaxTemps: DataStream[(String, Double)] = sensorData
       // project to sensor id and temperature
       .map(r => (r.id, r.temperature))
       // compute every 10 seconds the max temperature per sensor
       .keyBy(_._1)
-      .timeWindow(Time.seconds(10))
+      .window(TumblingEventTimeWindows.of(Time.seconds(10)))
       .max(1)
 
     // store latest value for each sensor in a queryable state

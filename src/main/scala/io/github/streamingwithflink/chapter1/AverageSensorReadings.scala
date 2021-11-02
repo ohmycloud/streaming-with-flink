@@ -16,12 +16,11 @@
 package io.github.streamingwithflink.chapter1
 
 import java.time.Duration
-
-import io.github.streamingwithflink.util.{SensorReading, SensorSource, SensorTimeAssigner}
+import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.function.WindowFunction
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
@@ -30,13 +29,15 @@ import org.apache.flink.util.Collector
 object AverageSensorReadings {
 
   /** main() defines and executes the DataStream program */
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     // set up the streaming execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    // Flink 1.12 中已废弃 setStreamTimeCharacteristic 方法
+    // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -63,7 +64,7 @@ object AverageSensorReadings {
       // organize stream by sensorId
       .keyBy(_.id)
       // group readings in 1 second windows
-      .timeWindow(Time.seconds(1))
+      .window(TumblingEventTimeWindows.of(Time.seconds(1)))
       // compute average temperature using a user-defined function
       .apply(new TemperatureAverager)
 

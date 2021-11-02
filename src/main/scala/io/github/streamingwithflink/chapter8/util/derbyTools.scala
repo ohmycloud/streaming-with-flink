@@ -20,17 +20,18 @@ package io.github.streamingwithflink.chapter8.util
 
 import java.sql.DriverManager
 import java.util.Properties
-
 import scala.util.Random
 
 /**
-  * Methods to setup an embedded, in-memory Derby database.
+  * 一些用来设置嵌入式内存数据库 Derby 的方法
   */
 object DerbySetup {
-
-  /** Sets up an embedded in-memory Derby database and creates the table. */
+  /**
+   * 设置一个嵌入式内存数据库 Derby, 然后创建表
+    * @param tableDDL 建表语句
+   */
   def setupDerby(tableDDL: String): Unit = {
-    // start embedded in-memory Derby and create a connection
+    // 启动嵌入式内存数据库 Derby, 然后创建一个连接
     Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance()
     val props = new Properties()
     val conn = DriverManager.getConnection("jdbc:derby:memory:flinkExample;create=true", props)
@@ -43,9 +44,14 @@ object DerbySetup {
     conn.close()
   }
 
-  /** Inserts initial data into a Derby table. */
+
+  /**
+   * 插入初始数据到 Derby 表中
+    * @param stmt 语句字符串
+   * @param params 参数
+   */
   def initializeTable(stmt: String, params: Array[Array[Any]]): Unit = {
-    // connect to embedded in-memory Derby and prepare query
+    // 连接嵌入式内存数据库 Derby 并准备查询
     val conn = DriverManager.getConnection("jdbc:derby:memory:flinkExample", new Properties())
     val prepStmt = conn.prepareStatement(stmt)
 
@@ -53,18 +59,20 @@ object DerbySetup {
       for (i <- 1 to stmtParams.length) {
         prepStmt.setObject(i, stmtParams(i - 1))
       }
-      // update the Derby table
+      // 更新 Derby 表
       prepStmt.addBatch()
     }
     prepStmt.executeBatch()
   }
 }
 
-/**
-  * A Runnable that queries the Derby table in intervals and prints the result.
-  */
-class DerbyReader(query: String, interval: Long) extends Runnable {
 
+/***
+ * A Runnable that queries the Derby table in intervals and prints the result.
+ * @param query 查询语句
+ * @param interval 时间间隔
+ */
+class DerbyReader(query: String, interval: Long) extends Runnable {
   // connect to embedded in-memory Derby and prepare query
   private val conn = DriverManager.getConnection("jdbc:derby:memory:flinkExample", new Properties())
   private val prepStmt = conn.prepareStatement(query)

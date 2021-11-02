@@ -26,7 +26,6 @@ import io.github.streamingwithflink.chapter8.util.FailingMapper
 import io.github.streamingwithflink.util.{ResettableSensorSource, SensorReading}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction.Context
 import org.apache.flink.streaming.api.scala._
@@ -35,23 +34,13 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.util.Collector
 
 /**
-  * Example program that demonstrates the behavior of a 2-phase-commit (2PC) sink that writes
-  * output to files.
-  *
-  * The 2PC sink guarantees exactly-once output by writing records immediately to a
-  * temp file. For each checkpoint, a new temp file is created. When a checkpoint
-  * completes, the corresponding temp file is committed by moving it to a target directory.
-  *
-  * The program includes a MapFunction that throws an exception in regular intervals to simulate
-  * application failures.
-  * You can compare the behavior of a 2PC sink and the regular print sink in failure cases.
-  *
-  * - The TransactionalFileSink commits a file to the target directory when a checkpoint completes
-  * and prevents duplicated result output.
-  * - The regular print() sink writes to the standard output when a result is produced and
-  * duplicates result output in case of a failure.
-  *
-  */
+ * 示例程序: 演示了两步提交(2PC) sink 行为, 这个 sink 将输出写入到文件中。
+ *
+ * 2PC sink 通过立即将记录写入临时文件来保证精确的一次输出。对于每个检查点，都会创建一个新的临时文件。当一个检查点完成后，相应的临时文件被移动到一个目标目录中，从而提交。
+ * 该程序包括一个 MapFunction，它以一定的间隔抛出一个异常，以模拟应用程序的失败。你可以比较 2PC sink 和普通 print sink 在故障情况下的行为。
+ * TransactionalFileSink 在检查点完成后将文件提交到目标目录，并防止重复的结果输出。
+ * 普通的 print() sink 在产生结果时写到标准输出，并在失败的情况下重复输出结果。
+ */
 object TransactionSinkExample {
 
   def main(args: Array[String]): Unit = {
@@ -62,8 +51,6 @@ object TransactionSinkExample {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -80,7 +67,6 @@ object TransactionSinkExample {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     // compute average temperature of all sensors every second
     val avgTemp: DataStream[(String, Double)] = sensorData
@@ -172,7 +158,7 @@ class TransactionalFileSink(val targetPath: String, val tempPath: String)
   }
 
   /** Write record into the current transaction file. */
-  override def invoke(transaction: String, value: (String, Double), context: Context[_]): Unit = {
+  override def invoke(transaction: String, value: (String, Double), context: Context): Unit = {
     transactionWriter.write(value.toString)
     transactionWriter.write('\n')
   }

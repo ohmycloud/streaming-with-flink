@@ -27,17 +27,20 @@ import scala.util.Random
 class SmokeLevelSource extends RichParallelSourceFunction[SmokeLevel] {
 
   // flag indicating whether source is still running.
+  // 标记: 表明 source 是否仍在运行
   var running: Boolean = true
 
   /** run() continuously emits SmokeLevel events by emitting them through the SourceContext. */
+  /* run() 通过 SourceContext 持续发射 SmokeLevel 事件*/
   override def run(srcCtx: SourceContext[SmokeLevel]): Unit = {
 
     // initialize random number generator
+    // 初始化随机数生成器
     val rand = new Random()
 
     // emit data until being canceled
+    // 发射数据直到被取消
     while (running) {
-
       if (rand.nextGaussian() > 0.8 ) {
         // emit a high SmokeLevel
         srcCtx.collect(SmokeLevel.High)
@@ -49,7 +52,6 @@ class SmokeLevelSource extends RichParallelSourceFunction[SmokeLevel] {
       // wait for 1s
       Thread.sleep(1000)
     }
-
   }
 
   /** Cancels this SourceFunction. */

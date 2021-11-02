@@ -11,13 +11,10 @@ import org.apache.flink.util.Collector
 
 object CoProcessFunctionTimers {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     // set up the streaming execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     // switch messages disable filtering of sensor readings for a specific amount of time
     val filterSwitches: DataStream[(String, Long)] = env

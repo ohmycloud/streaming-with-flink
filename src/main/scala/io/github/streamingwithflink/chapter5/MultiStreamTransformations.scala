@@ -19,9 +19,8 @@ import java.time.Duration
 
 import io.github.streamingwithflink.chapter5.util.{Alert, SmokeLevel, SmokeLevelSource}
 import io.github.streamingwithflink.chapter5.util.SmokeLevel.SmokeLevel
-import io.github.streamingwithflink.util.{SensorReading, SensorSource, SensorTimeAssigner}
+import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.util.Collector
@@ -34,13 +33,11 @@ import org.apache.flink.util.Collector
 object MultiStreamTransformations {
 
   /** main() defines and executes the DataStream program */
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     // set up the streaming execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -56,7 +53,6 @@ object MultiStreamTransformations {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     // ingest smoke level stream
     val smokeReadings: DataStream[SmokeLevel] = env
@@ -68,6 +64,7 @@ object MultiStreamTransformations {
       .keyBy(_.id)
 
     // connect the two streams and raise an alert if the temperature and smoke levels are high
+    // 连接两个流, 如果温度和冒烟等级都很高则发出告警
     val alerts = keyed
       .connect(smokeReadings.broadcast)
       .flatMap(new RaiseAlertFlatMap)

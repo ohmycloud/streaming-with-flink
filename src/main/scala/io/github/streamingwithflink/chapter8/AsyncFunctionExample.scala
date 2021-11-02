@@ -9,43 +9,38 @@ import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.async.{AsyncFunction, ResultFuture}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Random, Success}
 
 /**
-  * Example program that demonstrates the use of an AsyncFunction to enrich records with data
-  * that is stored in an external database. The AsyncFunction queries the database via its
-  * JDBC interface. For this demo, the database is an embedded, in-memory Derby database.
-  *
-  * The AsyncFunction sends queries and handles their results asynchronously in separate threads
-  * for improved latency and throughput.
-  *
-  * The program includes a MapFunction that performs the same logic as the AsyncFunction in a
-  * synchronous fashion. You can compare the behavior of the synchronous MapFunction and the
-  * AsyncFunction by commenting out parts of the code.
+  * 示例程序: 演示了使用 AsyncFunction 来充实存储在外部数据库中的数据记录。
+ *  AsyncFunction 通过它的 JDBC 接口查询数据库。
+ *  对于这个示例程序, 使用的是嵌入式的内存数据库 Derby。
+ *  AsyncFunction 发送查询并在单独的线程中以异步的方式处理它们的结果, 以改善延迟和吞吐量。
+ *  该程序包含了一个 MapFunction, 它以同步的方式执行和 AsyncFunction 同样的逻辑。
+ *  你可以注释掉代码的一部分以比较同步的 MapFunction 和 AsyncFunction 的行为。
   */
 object AsyncFunctionExample {
 
   def main(args: Array[String]): Unit = {
 
-    // setup the embedded Derby database
+    // 设置嵌入式 Derby 数据库
     DerbySetup.setupDerby(
       """CREATE TABLE SensorLocations (
         |  sensor VARCHAR(16) PRIMARY KEY,
         |  room VARCHAR(16))
       """.stripMargin)
 
-    // insert some initial data
+    // 插入一些初始数据
     DerbySetup.initializeTable(
       "INSERT INTO SensorLocations (sensor, room) VALUES (?, ?)",
       (1 to 80).map(i => Array(s"sensor_$i", s"room_${i % 10}")).toArray
         .asInstanceOf[Array[Array[Any]]]
     )
 
-    // start a thread that updates the data of Derby table
+    // 启动一个线程用以更新 Derby 表中的数据
     new Thread(new DerbyWriter(
       "UPDATE SensorLocations SET room = ? WHERE sensor = ?",
       (rand: Random) =>
@@ -59,8 +54,6 @@ object AsyncFunctionExample {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(1000L)
 
@@ -77,11 +70,10 @@ object AsyncFunctionExample {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     // OPTION 1 (comment out to disable)
     // --------
-    // look up the location of a sensor from a Derby table with asynchronous requests.
+    // 使用异步请求从 Derby 表中查询传感器的位置
     val sensorLocations: DataStream[(String, String)] = AsyncDataStream
       .orderedWait(
         readings,
@@ -91,8 +83,8 @@ object AsyncFunctionExample {
 
     // OPTION 2 (uncomment to enable)
     // --------
-    // look up the location of a sensor from a Derby table with synchronous requests.
-//    val sensorLocations: DataStream[(String, String)] = sensorData
+    // 使用同步请求从 Derby 表中查询传感器的位置
+//    val sensorLocations: DataStream[(String, String)] = readings
 //      .map(new DerbySyncFunction)
 
     // print the sensor locations
@@ -116,7 +108,7 @@ class DerbyAsyncFunction extends AsyncFunction[SensorReading, (String, String)] 
   // direct execution context to forward result future to callback object
   private lazy val directExecCtx =
     ExecutionContext.fromExecutor(
-      org.apache.flink.runtime.concurrent.Executors.directExecutor())
+      org.apache.flink.util.concurrent.Executors.directExecutor())
 
   /** Executes JDBC query in a thread and handles the resulting Future
     * with an asynchronous callback. */
@@ -167,7 +159,7 @@ class DerbyAsyncFunction extends AsyncFunction[SensorReading, (String, String)] 
 }
 
 /**
-  * MapFunction that queries a Derby table via JDBC in a blocking fashion.
+  * MapFunction 查询, 通过 JDBC 以阻塞的形式查询 Derby 表。
   */
 class DerbySyncFunction extends RichMapFunction[SensorReading, (String, String)] {
 
@@ -176,7 +168,7 @@ class DerbySyncFunction extends RichMapFunction[SensorReading, (String, String)]
 
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)
-    // connect to Derby and prepare query
+    // 连接到 Derby 并准备查询
     this.conn = DriverManager.getConnection("jdbc:derby:memory:flinkExample", new Properties())
     this.query = conn.prepareStatement("SELECT room FROM SensorLocations WHERE sensor = ?")
   }
@@ -185,7 +177,7 @@ class DerbySyncFunction extends RichMapFunction[SensorReading, (String, String)]
 
     val sensor = reading.id
 
-    // set query parameter and execute query
+    // 设置查询参数并执行查询
     query.setString(1, sensor)
     val result = query.executeQuery()
 

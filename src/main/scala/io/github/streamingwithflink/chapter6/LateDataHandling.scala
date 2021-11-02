@@ -1,16 +1,16 @@
 package io.github.streamingwithflink.chapter6
 
 import java.time.Duration
-import io.github.streamingwithflink.util.{SensorReading, SensorSource, SensorTimeAssigner}
+import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
@@ -30,8 +30,6 @@ object LateDataHandling {
     // checkpoint every 10 seconds
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
 
-    // use event time for the application
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
     env.getConfig.setAutoWatermarkInterval(500L)
 
@@ -49,7 +47,6 @@ object LateDataHandling {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     // Different strategies to handle late records.
     // Select and uncomment on of the lines below to demonstrate a strategy.
@@ -89,7 +86,7 @@ object LateDataHandling {
 
     val countPer10Secs: DataStream[(String, Long, Int)] = readings
       .keyBy(_.id)
-      .timeWindow(Time.seconds(10))
+      .window(TumblingEventTimeWindows.of(Time.seconds(10)))
       // emit late readings to a side output
       .sideOutputLateData(lateReadingsOutput)
       // count readings per window
@@ -121,7 +118,7 @@ object LateDataHandling {
 
     val countPer10Secs: DataStream[(String, Long, Int, String)] = readings
       .keyBy(_.id)
-      .timeWindow(Time.seconds(10))
+      .window(TumblingEventTimeWindows.of(Time.seconds(10)))
       // process late readings for 5 additional seconds
       .allowedLateness(Time.seconds(5))
       // count readings and update results if late readings arrive
