@@ -18,7 +18,7 @@ object TrackMaximumTemperature {
   /** main() defines and executes the DataStream program */
   def main(args: Array[String]): Unit = {
 
-    // set up the streaming execution environment
+    // 设置带有 WebUI 的流执行环境
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI()
 
     // checkpoint every 10 seconds
@@ -63,11 +63,12 @@ object TemperatureDashboard {
 
   // queryable state proxy connection information.
   // can be looked up in logs of running QueryableStateJob
-  val proxyHost = "127.0.0.1"
+  val proxyHost = "localhost"
   val proxyPort = 9069
   // jobId of running QueryableStateJob.
   // can be looked up in logs of running job or the web UI
-  val jobId = "d2447b1a5e0d952c372064c886d2220a"
+  // jobId 可以从 web UI 中找到
+  val jobId = "c3d6c8def774a5efa1191d810459934c"
 
   // how many sensors to query
   val numSensors = 5
@@ -85,6 +86,7 @@ object TemperatureDashboard {
     // print header line of dashboard table
     val header = (for (i <- 0 until numSensors) yield "sensor_" + (i + 1)).mkString("\t| ")
     println(header)
+    // sensor_1	| sensor_2	| sensor_3	| sensor_4	| sensor_5
 
     // loop forever
     while (true) {
@@ -95,7 +97,11 @@ object TemperatureDashboard {
       }
       // wait for results
       for (i <- 0 until numSensors) {
-        results(i) = futures(i).get().value()._2
+        try {
+          results(i) = futures(i).get().value()._2
+        } catch {
+          case ex: Exception => println(ex.getMessage)
+        }
       }
       // print result
       val line = results.map(t => f"$t%1.3f").mkString("\t| ")

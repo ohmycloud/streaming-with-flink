@@ -1,13 +1,12 @@
 package io.github.streamingwithflink.chapter7
 
 import java.time.Duration
-import java.util
 import io.github.streamingwithflink.util.{SensorReading, SensorSource}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
-import org.apache.flink.streaming.api.checkpoint.{CheckpointedFunction, ListCheckpointed}
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.util.Collector
 import scala.collection.JavaConverters._

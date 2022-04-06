@@ -83,7 +83,7 @@ object MultiStreamTransformations {
     */
   class RaiseAlertFlatMap extends CoFlatMapFunction[SensorReading, SmokeLevel, Alert] {
 
-    var smokeLevel = SmokeLevel.Low
+    var smokeLevel: SmokeLevel.Value = SmokeLevel.Low
 
     override def flatMap1(in1: SensorReading, collector: Collector[Alert]): Unit = {
       // high chance of fire => true

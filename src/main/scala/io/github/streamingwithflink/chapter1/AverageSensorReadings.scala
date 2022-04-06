@@ -54,8 +54,6 @@ object AverageSensorReadings {
             override def extractTimestamp(t: SensorReading, l: Long): Long = t.timestamp
           })
       )
-      // 1.11 已经废弃该接口, 使用新的带 WatermarkStrategy 的接口
-      //.assignTimestampsAndWatermarks(new SensorTimeAssigner)
 
     val avgTemp: DataStream[SensorReading] = sensorData
       // convert Fahrenheit to Celsius using an inlined map function
