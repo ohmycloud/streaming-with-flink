@@ -46,6 +46,7 @@ class SmokeLevelSource extends RichParallelSourceFunction[SmokeLevel] {
         srcCtx.collect(SmokeLevel.High)
       }
       else {
+        // otherwise emit a low SmokeLevel
         srcCtx.collect(SmokeLevel.Low)
       }
 
